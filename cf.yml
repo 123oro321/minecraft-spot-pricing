@@ -98,22 +98,74 @@ Parameters:
   Difficulty:
     Type: String
     Description: "The game's difficulty"
-    Default: normal
+    Default: unspecified
     AllowedValues:
+    - unspecified
     - peaceful
     - easy
     - normal
     - hard
 
+  EnforceWhitelist:
+    Type: String
+    Description: Whenever the server should enforce whitelist
+    Default: unspecified
+    AllowedValues:
+      - unspecified
+      - true
+      - false
+
   Whitelist:
     Type: String
-    Description: Usernames of your friends
+    Description: Usernames of your friends to whitelist
     Default: ''
 
   MinecraftVersion:
     Type: String
     Description: Server minecraft version
     Default: ''
+
+  ForgeVersion:
+    Type: String
+    Description: If using forge type optionally provide version
+
+  PackwizUrl:
+    Type: String
+    Description: Url to packwiz provider
+
+  SpawnProtection:
+    Type: String
+    Description: Distance in blocks from spawn
+
+  AllowFlight:
+    Type: String
+    Description: Should be enabled for some features in mods to work properly.
+    Default: unspecified
+    AllowedValues:
+      - unspecified
+      - true
+      - false
+
+  UseAikarFlags:
+    Type: String
+    Description: "https://aikar.co/2018/07/02/tuning-the-jvm-g1gc-garbage-collector-flags-for-minecraft/"
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+  MessageOfTheDay:
+    Type: String
+    Description: Text message of the day
+
+  TailscaleKey:
+    NoEcho: true
+    Type: String
+    Description: Tailscale auth key. May be of any kind, but for security preferred non-reusable
+
+  TailscaleHostname:
+    Type: String
+    Description: Hostname for the server within tailscale network
 
   Memory:
     Type: String
@@ -137,8 +189,9 @@ Parameters:
   GameMode:
     Type: String
     Description: "Options: creative, survival (default), adventure, spectator (v1.8+)"
-    Default: survival
+    Default: unspecified
     AllowedValues:
+    - unspecified
     - creative
     - survival
     - adventure
@@ -146,9 +199,10 @@ Parameters:
 
   LevelType:
     Type: String
-    Description: "Options: DEFAULT, FLAT, LARGEBIOMES, AMPLIFIED, CUSTOMIZED, BUFFET, BIOMESOP (v1.12-), BIOMESOPLENTY (v1.15+)"
-    Default: DEFAULT
+    Description: "Options: DEFAULT, FLAT, LARGEBIOMES, AMPLIFIED, CUSTOMIZED, BUFFET, BIOMESOP (v1.12-), BIOMESOPLENTY (v1.15+), TERRAFORGED"
+    Default: unspecified
     AllowedValues:
+    - unspecified
     - DEFAULT
     - FLAT
     - LARGEBIOMES
@@ -157,6 +211,7 @@ Parameters:
     - BUFFET
     - BIOMESOP
     - BIOMESOPLENTY
+    - TERRAFORGED
 
   EnableRollingLogs:
     Type: String
@@ -169,6 +224,44 @@ Parameters:
   Timezone:
     Type: String
     Description: "Change the server's timezone. Use the canonical name of the format: Area/Location (e.g. America/New_York)"
+
+  SmartStart:
+    Type: String
+    Description: "Whenever smart start feature should be enabled. Requires to use tailscale in order to work properly, with non ephemeral key"
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+  SmartStartInstanceType:
+    Type: String
+    Description: "Image for the standby server. Should be minimal to optimize cost. Default t3.nano"
+    Default: t3.nano
+
+  SmartStartSpotPrice:
+    Type: String
+    Description: "A t3.nano shouldn't cost much. 0.004 is the minimum spot price"
+    Default: "0.004"
+
+  SmartStartAmi:
+    Description: AWS AMI ID
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2
+
+  InitPeriod:
+    Type: Number
+    Description: Time in seconds for server to be declared inactive after startup
+    Default: 1800
+
+  EstablishedPeriod:
+    Type: Number
+    Description: Time in seconds for server to be declared inactive after connection was established
+    Default: 3600
+
+  CheckFrequency:
+    Type: Number
+    Description: Time in seconds between player count checks
+    Default: 10
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -186,9 +279,16 @@ Metadata:
       - Label:
           default: Optional Server Settings
         Parameters:
+        - MessageOfTheDay
         - MinecraftTypeTag
+        - ForgeVersion
+        - PackwizUrl
+        - SpawnProtection
+        - AllowFlight
+        - UseAikarFlags
         - AdminPlayerNames
         - Difficulty
+        - EnforceWhitelist
         - Whitelist
         - MinecraftVersion
         - Memory
@@ -214,6 +314,18 @@ Metadata:
         - KeyPairName
         - YourIPv4
         - YourIPv6
+        - TailscaleKey
+        - TailscaleHostname
+      - Label:
+          default: Smart Start Configuration
+        Parameters:
+        - SmartStart
+        - SmartStartInstanceType
+        - SmartStartSpotPrice
+        - InitPeriod
+        - EstablishedPeriod
+        - CheckFrequency
+        - SmartStartAmi
       - Label: 
           default: Optional DNS Configuration
         Parameters:
@@ -234,6 +346,12 @@ Metadata:
         default: "A comma delimited list (no spaces) of player names to be admins"
       Difficulty:
         default: "Which difficulty?"
+      UseAikarFlags:
+        default: "Use aikar flags"
+      MessageOfTheDay:
+        default: "Motd"
+      EnforceWhitelist:
+        default: "Enforce whitelist?"
       Whitelist:
         default: "A comma delimited list (no spaces) of player names"
       MinecraftVersion:
@@ -272,6 +390,30 @@ Metadata:
         default: "The Minecraft game mode"
       LevelType:
         default: "Level type for world generation"
+      ForgeVersion:
+        default: "Forge version"
+      PackwizUrl:
+        default: "Packwiz url"
+      SpawnProtection:
+        default: "Spawn protection"
+      AllowFlight:
+        default: "Allow flight?"
+      TailscaleKey:
+        default: "Tailscale key"
+      TailscaleHostname:
+        default: "Tailscale hostname"
+      SmartStart:
+        default: "Smart start enabled?"
+      SmartStartSpotPrice:
+        default: "Maximum standby spot price per hour. Leave blank to disable spot pricing."
+      SmartStartInstanceType:
+        default: "Instance type for standby server. You must make sure this is available in your region! https://aws.amazon.com/ec2/pricing/on-demand/"
+      InitPeriod:
+        default: "Initial timeout"
+      EstablishedPeriod:
+        default: "Established timeout"
+      CheckFrequency:
+        default: "Check frequency"
       EnableRollingLogs:
         default: "Whether to enable rolling logs"
       Timezone:
@@ -280,7 +422,8 @@ Metadata:
 Conditions:
   MinecraftTypeTagProvided: !Not [ !Equals [ !Ref MinecraftTypeTag, '' ] ]
   AdminPlayerNamesProvided: !Not [ !Equals [ !Ref AdminPlayerNames, '' ] ]
-  DifficultyProvided: !Not [ !Equals [ !Ref Difficulty, '' ] ]
+  DifficultyProvided: !Not [ !Equals [ !Ref Difficulty, 'unspecified' ] ]
+  EnforceWhitelistProvided: !Not [ !Equals [ !Ref EnforceWhitelist, 'unspecified' ] ]
   WhitelistProvided: !Not [ !Equals [ !Ref Whitelist, '' ] ]
   MinecraftVersionProvided: !Not [ !Equals [ !Ref MinecraftVersion, '' ] ]
   EntryPointProvided: !Not [ !Equals [ !Join [ "", !Ref EntryPoint ], '' ] ]
@@ -292,12 +435,21 @@ Conditions:
   IPv6AddressProvided: !Not [ !Equals [ !Ref YourIPv6, '' ] ]
   DnsConfigEnabled: !And [ !Not [ !Equals [ !Ref HostedZoneId, '' ] ], !Not [ !Equals [ !Ref RecordName, '' ] ] ]
   SpotPriceProvided: !Not [ !Equals [ !Ref SpotPrice, '' ] ]
+  SmartStartSpotPriceProvided: !Not [ !Equals [ !Ref SmartStartSpotPrice, '' ] ]
   MemoryProvided: !Not [ !Equals [ !Ref Memory, '' ] ]
   SeedProvided: !Not [ !Equals [ !Ref Seed, '' ] ]
   MaxPlayersProvided: !Not [ !Equals [ !Ref MaxPlayers, -1 ] ]
   ViewDistanceProvided: !Not [ !Equals [ !Ref ViewDistance, -1 ] ]
-  GameModeProvided: !Not [ !Equals [ !Ref GameMode, '' ] ]
-  LevelTypeProvided: !Not [ !Equals [ !Ref LevelType, '' ] ]
+  GameModeProvided: !Not [ !Equals [ !Ref GameMode, 'unspecified' ] ]
+  LevelTypeProvided: !Not [ !Equals [ !Ref LevelType, 'unspecified' ] ]
+  ForgeVersionProvided: !Not [ !Equals [ !Ref ForgeVersion, '' ] ]
+  PackwizUrlProvided: !Not [ !Equals [ !Ref PackwizUrl, '' ] ]
+  SpawnProtectionProvided: !Not [ !Equals [ !Ref SpawnProtection, '' ] ]
+  AllowFlightProvided: !Not [ !Equals [ !Ref AllowFlight, 'unspecified' ] ]
+  TailscaleKeyProvided: !Not [ !Equals [ !Ref TailscaleKey, '' ] ]
+  TailscaleHostnameProvided: !Not [ !Equals [ !Ref TailscaleHostname, '' ] ]
+  MessageOfTheDayProvided: !Not [ !Equals [ !Ref MessageOfTheDay, ''] ]
+  SmartStartEnabled: !And [!Equals [ !Ref SmartStart, 'true'], !Condition TailscaleKeyProvided ]
   EnableRollingLogsProvided: !Not [ !Equals [ !Ref EnableRollingLogs, '' ] ]
   TimezoneProvided: !Not [ !Equals [ !Ref Timezone, '' ] ]
 
@@ -436,43 +588,100 @@ Resources:
           IpProtocol: tcp
           CidrIpv6: !Sub "${YourIPv6}/128"
         - !Ref 'AWS::NoValue'
-      - FromPort: 25565
-        ToPort: 25565
-        IpProtocol: tcp
-        CidrIp: 0.0.0.0/0
+      - !If
+        - TailscaleKeyProvided
+        - FromPort: 41641
+          ToPort: 41641
+          IpProtocol: udp
+          CidrIp: 0.0.0.0/0
+        - FromPort: 25565
+          ToPort: 25565
+          IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+      - !If
+        - TailscaleKeyProvided
+        - FromPort: 3478
+          ToPort: 3478
+          IpProtocol: udp
+          CidrIp: 0.0.0.0/0
+        - !Ref 'AWS::NoValue'
       VpcId: !Ref Vpc
 
-  LaunchConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      AssociatePublicIpAddress: true
-      IamInstanceProfile: !Ref InstanceProfile
-      ImageId: !Ref ECSAMI
-      InstanceType: !Ref InstanceType
-      KeyName: 
-        !If [ KeyPairNameProvided, !Ref KeyPairName, !Ref 'AWS::NoValue' ]
-      SecurityGroups:
-      - !Ref Ec2Sg
-      SpotPrice: !If [ SpotPriceProvided, !Ref SpotPrice, !Ref 'AWS::NoValue' ]
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash -xe
-          echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
-          yum install -y amazon-efs-utils
-          mkdir /opt/minecraft
-          mount -t efs ${Efs}:/ /opt/minecraft
-          chown 845:845 /opt/minecraft
+      LaunchTemplateData:
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: true
+            DeviceIndex: 0
+            Groups:
+              - !Ref Ec2Sg
+        IamInstanceProfile:
+          Name: !Ref InstanceProfile
+        MetadataOptions:
+          InstanceMetadataTags: 'enabled'
+        ImageId: !Ref ECSAMI
+        InstanceType: !Ref InstanceType
+        KeyName:
+          !If [ KeyPairNameProvided, !Ref KeyPairName, !Ref 'AWS::NoValue' ]
+        InstanceMarketOptions:
+          !If
+          - SpotPriceProvided
+          - MarketType: 'spot'
+            SpotOptions:
+              MaxPrice: !Ref SpotPrice
+          - !Ref 'AWS::NoValue'
+        UserData:
+          Fn::Base64: !Sub
+            - |
+              #!/bin/bash -xe
+              echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+              yum install -y amazon-efs-utils
+              mkdir /opt/minecraft
+              mount -t efs ${Efs}:/ /opt/minecraft
+              chown 845:845 /opt/minecraft
+              ${extra_tailscale_steps}
+            - EcsCluster: !Ref EcsCluster
+              Efs: !Ref Efs
+              extra_tailscale_steps: !If
+                - TailscaleKeyProvided
+                - !Sub
+                  - |
+                    yum update gnupg2 -y
+                    yum install yum-utils -y
+                    yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2/tailscale.repo
+                    yum install tailscale -y
+                    sed -i 's+/var/lib/tailscale/tailscaled.state+/opt/minecraft/tailscaled.state+g' /usr/lib/systemd/system/tailscaled.service
+                    systemctl daemon-reload
+                    systemctl start tailscaled
+                    tailscale up --accept-dns=false --auth-key ${TailscaleKey}${hostnameFlag}
+                  - TailscaleKey: !Ref TailscaleKey
+                    hostnameFlag: !If
+                      - TailscaleHostnameProvided
+                      - !Sub ' --hostname ${TailscaleHostname}'
+                      - ''
+                - ''
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     DependsOn:
     - MountA
     - MountB
+    - InternetGatewayAttachment
     Properties:
       AutoScalingGroupName: !Sub "${AWS::StackName}-asg"
-      DesiredCapacity: !FindInMap [ ServerState, !Ref ServerState, DesiredCapacity ]
-      LaunchConfigurationName: !Ref LaunchConfiguration
-      NewInstancesProtectedFromScaleIn: true
+      DesiredCapacity: !If
+        - SmartStartEnabled
+        - 0
+        - !FindInMap [ ServerState, !Ref ServerState, DesiredCapacity ]
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      NewInstancesProtectedFromScaleIn: false
+      Tags:
+        - Key: role
+          PropagateAtLaunch: true
+          Value: "node"
       MaxSize: 1
       MinSize: 0
       VPCZoneIdentifier:
@@ -493,8 +702,69 @@ Resources:
             - ec2.amazonaws.com
           Action:
           - sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Policies:
+        - PolicyName: AmazonEC2ContainerServiceforEC2Role
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ec2:DescribeTags"
+                  - "ecs:DiscoverPollEndpoint"
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - "ecs:CreateCluster"
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/aws:cloudformation:stack-id: !Sub "${AWS::StackId}"
+                    aws:RequestTag/role: "node"
+              - Effect: "Allow"
+                Action:
+                  - "ecs:DeregisterContainerInstance"
+                  - "ecs:RegisterContainerInstance"
+                  - "ecs:Submit*"
+                Resource: !GetAtt EcsCluster.Arn
+              - Effect: "Allow"
+                Action:
+                  - "ecs:Poll"
+                  - "ecs:StartTelemetrySession"
+                  - "ecs:UpdateContainerInstancesState"
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ecs:cluster: !GetAtt EcsCluster.Arn
+              - !If
+                - LogGroupNameProvided
+                - Effect: "Allow"
+                  Action:
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource: !GetAtt CloudWatchLogGroup.Arn
+                - !Ref 'AWS::NoValue'
+        - !If
+          - SmartStartEnabled
+          - PolicyName: AllowSendEvents
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "events:PutEvents"
+                  Resource: "*"
+                  Condition:
+                    StringEquals:
+                      events:source:
+                        - 'oros.mcs'
+                      events:detail-type:
+                       - 'Server inactive'
+                       - 'Server ready'
+          - !Ref 'AWS::NoValue'
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -520,7 +790,6 @@ Resources:
           MinimumScalingStepSize: 1
           Status: ENABLED
           TargetCapacity: 100
-        ManagedTerminationProtection: ENABLED
 
   EcsClusterCapacityProviderAssociation:
     Type: AWS::ECS::ClusterCapacityProviderAssociations
@@ -534,9 +803,15 @@ Resources:
 
   EcsService:
     Type: AWS::ECS::Service
+    DependsOn:
+      - AutoScalingGroup
+      - EcsClusterCapacityProviderAssociation
     Properties: 
       Cluster: !Ref EcsCluster
-      DesiredCount: !FindInMap [ ServerState, !Ref ServerState, DesiredCapacity ]
+      DesiredCount: !If
+        - SmartStartEnabled
+        - 0
+        - !FindInMap [ ServerState, !Ref ServerState, DesiredCapacity ]
       ServiceName: !Sub "${AWS::StackName}-ecs-service"
       TaskDefinition: !Ref EcsTask  
       CapacityProviderStrategy:
@@ -571,6 +846,13 @@ Resources:
           - ContainerPort: 25565
             HostPort: 25565
             Protocol: tcp
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - mc-health
+            Interval: 30
+            Retries: 10
+            StartPeriod: 60
           LogConfiguration:
             !If
             - LogGroupNameProvided
@@ -605,6 +887,11 @@ Resources:
               - DifficultyProvided
               - Name: "DIFFICULTY"
                 Value: !Sub "${Difficulty}"
+              - !Ref 'AWS::NoValue'
+            - !If
+              - EnforceWhitelistProvided
+              - Name: "ENFORCE_WHITELIST"
+                Value: !Sub "${EnforceWhitelist}"
               - !Ref 'AWS::NoValue'
             - !If
               - WhitelistProvided
@@ -647,6 +934,33 @@ Resources:
                 Value: !Sub "${LevelType}"
               - !Ref 'AWS::NoValue'
             - !If
+              - ForgeVersionProvided
+              - Name: "FORGEVERSION"
+                Value: !Sub "${ForgeVersion}"
+              - !Ref 'AWS::NoValue'
+            - !If
+              - PackwizUrlProvided
+              - Name: "PACKWIZ_URL"
+                Value: !Sub "${PackwizUrl}"
+              - !Ref 'AWS::NoValue'
+            - !If
+              - SpawnProtectionProvided
+              - Name: "SPAWN_PROTECTION"
+                Value: !Sub "${SpawnProtection}"
+              - !Ref 'AWS::NoValue'
+            - !If
+              - AllowFlightProvided
+              - Name: "ALLOW_FLIGHT"
+                Value: !Sub "${AllowFlight}"
+              - !Ref 'AWS::NoValue'
+            - Name: "USE_AIKAR_FLAGS"
+              Value: !Sub "${UseAikarFlags}"
+            - !If
+              - MessageOfTheDayProvided
+              - Name: "MOTD"
+                Value: !Sub "${MessageOfTheDay}"
+              - !Ref 'AWS::NoValue'
+            - !If
               - EnableRollingLogsProvided
               - Name: "ENABLE_ROLLING_LOGS"
                 Value: !Sub "${EnableRollingLogs}"
@@ -656,6 +970,35 @@ Resources:
               - Name: "TZ"
                 Value: !Sub "${Timezone}"
               - !Ref 'AWS::NoValue'
+        - !If
+          - SmartStartEnabled
+          - Name: mc-monitor
+            Image: "itzg/mc-monitor"
+            MemoryReservation: 128
+            Command:
+             - "export-for-prometheus"
+             - "--servers"
+             - "minecraft"
+            Links:
+              - "minecraft:minecraft"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - SmartStartEnabled
+          - Name: mc-event
+            Image: "or0s/mc-inactive-aws-event"
+            MemoryReservation: 128
+            Links:
+              - "mc-monitor:mc-monitor"
+            Environment:
+              - Name: "HOST"
+                Value: "mc-monitor"
+              - Name: "AUTOSTOP_TIMEOUT_INIT"
+                Value: !Sub "${InitPeriod}"
+              - Name: "AUTOSTOP_TIMEOUT_EST"
+                Value: !Sub "${EstablishedPeriod}"
+              - Name: "AUTOSTOP_PERIOD"
+                Value: !Sub "${CheckFrequency}"
+          - !Ref 'AWS::NoValue'
 
   CloudWatchLogGroup:
     Condition: LogGroupNameProvided
@@ -665,13 +1008,280 @@ Resources:
       RetentionInDays: !Sub "${LogGroupRetentionInDays}"
 
   # ====================================================
-  # SET DNS RECORD
+  # Tailscale smart start
+  # ====================================================
+
+  InstanceRoleStandby:
+    Type: AWS::IAM::Role
+    Condition: SmartStartEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AllowSendEvents
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "events:PutEvents"
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    events:source:
+                      - 'oros.mcs'
+                    events:detail-type: 'Standby join attempt'
+
+  InstanceProfileStandby:
+    Type: AWS::IAM::InstanceProfile
+    Condition: SmartStartEnabled
+    Properties:
+      Roles:
+        - !Ref InstanceRoleStandby
+
+  LaunchTemplateStandby:
+    Type: AWS::EC2::LaunchTemplate
+    Condition: SmartStartEnabled
+    Properties:
+      LaunchTemplateData:
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: true
+            DeviceIndex: 0
+            Groups:
+              - !Ref Ec2Sg
+        IamInstanceProfile:
+          Name: !Ref InstanceProfileStandby
+        MetadataOptions:
+          InstanceMetadataTags: 'enabled'
+        ImageId: !Ref SmartStartAmi
+        InstanceType: !Ref SmartStartInstanceType
+        KeyName:
+          !If [ KeyPairNameProvided, !Ref KeyPairName, !Ref 'AWS::NoValue' ]
+        InstanceMarketOptions:
+          !If
+          - SmartStartSpotPriceProvided
+          - MarketType: 'spot'
+            SpotOptions:
+              MaxPrice: !Ref SmartStartSpotPrice
+          - !Ref 'AWS::NoValue'
+        UserData:
+          Fn::Base64: !Sub
+            - |
+              #!/bin/bash -xe
+              yum install -y amazon-efs-utils
+              mkdir /opt/minecraft
+              mount -t efs ${Efs}:/ /opt/minecraft
+              chown 845:845 /opt/minecraft
+              yum update gnupg2 -y
+              yum install yum-utils git -y
+              yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2/tailscale.repo
+              yum install tailscale -y
+              sed -i 's+/var/lib/tailscale/tailscaled.state+/opt/minecraft/tailscaled.state+g' /usr/lib/systemd/system/tailscaled.service
+              systemctl daemon-reload
+              systemctl start tailscaled
+              tailscale up --accept-dns=false --auth-key ${TailscaleKey}${hostname}
+              git clone https://github.com/123oro321/minecraft-standby.git
+              cd minecraft-standby/
+              chmod +x install.sh
+              ./install.sh
+              cd ..
+              rm -rf minecraft-standby/sh
+            - EcsCluster: !Ref EcsCluster
+              Efs: !Ref Efs
+              TailscaleKey: !Ref TailscaleKey
+              hostname: !If
+                - TailscaleHostnameProvided
+                - !Sub ' --hostname ${TailscaleHostname}'
+                - ''
+
+  AutoScalingGroupStandby:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Condition: SmartStartEnabled
+    DependsOn:
+      - MountA
+      - MountB
+      - InternetGatewayAttachment
+    Properties:
+      AutoScalingGroupName: !Sub "${AWS::StackName}-standby-asg"
+      DesiredCapacity: !FindInMap [ ServerState, !Ref ServerState, DesiredCapacity ]
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplateStandby
+        Version: !GetAtt LaunchTemplateStandby.LatestVersionNumber
+      NewInstancesProtectedFromScaleIn: false
+      Tags:
+        - Key: role
+          PropagateAtLaunch: true
+          Value: "standby"
+      MaxSize: 1
+      MinSize: 0
+      VPCZoneIdentifier:
+        - !Ref SubnetA
+        - !Ref SubnetB
+    Metadata:
+      LaunchEvent: !If [ DnsConfigEnabled, !GetAtt LaunchEvent.Arn, "" ]
+
+  ActivateLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Condition: SmartStartEnabled
+    Properties:
+      FunctionName: !Ref SwitchStateLambda
+      Action: "lambda:InvokeFunction"
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventBridgeActivateRule.Arn
+
+  EventBridgeActivateRule:
+    Type: AWS::Events::Rule
+    Condition: SmartStartEnabled
+    Properties:
+      State: ENABLED
+      EventPattern:
+        source:
+          - 'oros.mcs'
+        detail-type:
+          - 'Standby join attempt'
+        detail:
+          stack:
+            - !Ref 'AWS::StackName'
+      Targets:
+        - Arn: !GetAtt SwitchStateLambda.Arn
+          Id: "SwitchStateLambda"
+          Input: '{"state": "active"}'
+
+  StandbyLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Condition: SmartStartEnabled
+    Properties:
+      FunctionName: !Ref SwitchStateLambda
+      Action: "lambda:InvokeFunction"
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventBridgeStandbyRule.Arn
+
+  EventBridgeStandbyRule:
+    Type: AWS::Events::Rule
+    Condition: SmartStartEnabled
+    Properties:
+      State: ENABLED
+      EventPattern:
+        source:
+          - 'oros.mcs'
+        detail-type:
+          - 'Server inactive'
+        detail:
+          stack:
+            - !Ref 'AWS::StackName'
+      Targets:
+        - Arn: !GetAtt SwitchStateLambda.Arn
+          Id: "SwitchStateLambda"
+          Input: '{"state": "standby"}'
+
+  ScaleRole:
+    Type: AWS::IAM::Role
+    Condition: SmartStartEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AllowChangeScaleGroupCapacity
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                 - "autoscaling:SetDesiredCapacity"
+                Resource:
+                - !Sub "arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupStandby}"
+                - !Sub "arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroup}"
+        - PolicyName: AllowChangeEcsService
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ecs:UpdateService"
+                Resource:
+                  - !Ref EcsService
+
+  SwitchStateLambda:
+    Type: "AWS::Lambda::Function"
+    Condition: SmartStartEnabled
+    Properties:
+      Environment:
+        Variables:
+          StandbySg: !Ref AutoScalingGroupStandby
+          ActiveSg: !Ref AutoScalingGroup
+          EcsCluster: !Ref EcsCluster
+          EcsService: !Ref EcsService
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          def handler(event, context):
+            val_standby = {
+              "active": 0,
+              "standby": 1,
+              "disabled": 0,
+            }
+            val_active = {
+              "active": 1,
+              "standby": 0,
+              "disabled": 0,
+            }
+            action = event['state']
+            autoscaling = boto3.client('autoscaling')
+            ecs = boto3.client('ecs')
+            autoscaling.set_desired_capacity(
+              AutoScalingGroupName=os.environ['StandbySg'],
+              DesiredCapacity=val_standby[action]
+            )
+            if action == "active":
+              autoscaling.set_desired_capacity(
+                AutoScalingGroupName=os.environ['ActiveSg'],
+                DesiredCapacity=val_active[action]
+              )
+              ecs.update_service(
+                cluster=os.environ['EcsCluster'],
+                service=os.environ['EcsService'],
+                desiredCount=val_active[action]
+              )
+            else:
+              ecs.update_service(
+                cluster=os.environ['EcsCluster'],
+                service=os.environ['EcsService'],
+                desiredCount=val_active[action]
+              )
+              autoscaling.set_desired_capacity(
+                AutoScalingGroupName=os.environ['ActiveSg'],
+                DesiredCapacity=val_active[action]
+              )
+      Description: Scale down standby server and start the real one.
+      FunctionName: !Sub "${AWS::StackName}-switch-state"
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt ScaleRole.Arn
+      Runtime: python3.9
+      Timeout: 20
+  # ====================================================
+  # SET DNS RECORD TODO fix integration with smart start and return tailscale start on server ready? and turn off button
   # ====================================================
 
   SetDNSRecordLambdaRole:
     Type: AWS::IAM::Role
     Condition: DnsConfigEnabled
-    Properties: 
+    Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -682,7 +1292,7 @@ Resources:
           Action:
           - sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
       Policies:
         - PolicyName: root
           PolicyDocument: 
@@ -690,7 +1300,7 @@ Resources:
             Statement: 
               - Effect: "Allow"
                 Action: "route53:ChangeResourceRecordSets"
-                Resource: !Sub "arn:aws:route53:::hostedzone/${HostedZoneId}"
+                Resource: !Sub "arn:${AWS::Partition}:route53:::hostedzone/${HostedZoneId}"
               - Effect: "Allow"
                 Action: "ec2:DescribeInstance*"
                 Resource: "*"
