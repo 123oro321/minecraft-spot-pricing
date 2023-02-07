@@ -653,7 +653,7 @@ Resources:
                     yum install tailscale -y
                     sed -i 's+/var/lib/tailscale/tailscaled.state+/opt/minecraft/tailscaled.state+g' /usr/lib/systemd/system/tailscaled.service
                     systemctl daemon-reload
-                    systemctl start tailscaled
+                    systemctl enable --now tailscaled
                     tailscale up --accept-dns=false --auth-key ${TailscaleKey}${hostnameFlag}
                   - TailscaleKey: !Ref TailscaleKey
                     hostnameFlag: !If
@@ -1085,7 +1085,7 @@ Resources:
               yum install tailscale -y
               sed -i 's+/var/lib/tailscale/tailscaled.state+/opt/minecraft/tailscaled.state+g' /usr/lib/systemd/system/tailscaled.service
               systemctl daemon-reload
-              systemctl start tailscaled
+              systemctl enable --now tailscaled
               tailscale up --accept-dns=false --auth-key ${TailscaleKey}${hostname}
               git clone https://github.com/123oro321/minecraft-standby.git
               cd minecraft-standby/
